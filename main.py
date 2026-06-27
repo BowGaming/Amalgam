@@ -1,15 +1,18 @@
 import discord
 from discord.ext import commands
 
-from dotenv import load_dotenv
 import os
 
-load_dotenv(dotenv_path="C:\\Users\\barto\\Amalgam\\.env")
-from dotenv import dotenv_values
-print(dotenv_values())
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).parent
+env_path = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=env_path, override=True)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-BOT_PREFIX = os.getenv("BOT_PREFIX", "!")  # fallback to "!" if not set
+BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
 
 
 class Amalgam(commands.Bot):
