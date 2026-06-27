@@ -14,6 +14,7 @@ load_dotenv(dotenv_path=env_path, override=True)
 TOKEN = os.getenv("DISCORD_TOKEN")
 BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
 
+from dotenv import dotenv_values
 print(dotenv_values(env_path))
 print("ENV FILE USED:", env_path)
 print("TOKEN:", TOKEN)
