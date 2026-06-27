@@ -19,6 +19,10 @@ print(dotenv_values(env_path))
 print("ENV FILE USED:", env_path)
 print("TOKEN:", TOKEN)
 
+from pathlib import Path
+
+print(Path("C:/Users/barto/Amalgam/.env").read_text())
+
 class Amalgam(commands.Bot):
     async def setup_hook(self):
         initial_extensions = [
