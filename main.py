@@ -7,7 +7,7 @@ import os
 from dotenv import dotenv_values
 print(dotenv_values())
 
-load_dotenv()  # loads variables from .env
+load_dotenv(dotenv_path="C:\\Users\\barto\\Amalgam\\.env")
 TOKEN = os.getenv("DISCORD_TOKEN")
 BOT_PREFIX = os.getenv("BOT_PREFIX", "!")  # fallback to "!" if not set
 
