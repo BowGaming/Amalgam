@@ -39,6 +39,7 @@ async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     print(discord.utils.utcnow().strftime("%d/%m/%Y %I:%M:%S:%f"))
+    print("This is the new bot, Amalgam")
     print("------")
 
 @bot.check
