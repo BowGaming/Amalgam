@@ -1,27 +1,11 @@
 import discord
 from discord.ext import commands
-
+from dotenv import load_dotenv
 import os
 
-from pathlib import Path
-from dotenv import load_dotenv
-
-BASE_DIR = Path(__file__).parent
-env_path = BASE_DIR / ".env"
-
-load_dotenv(dotenv_path=env_path, override=True)
-
+load_dotenv()  # loads variables from .env
 TOKEN = os.getenv("DISCORD_TOKEN")
-BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
-
-from dotenv import dotenv_values
-print(dotenv_values(env_path))
-print("ENV FILE USED:", env_path)
-print("TOKEN:", TOKEN)
-
-from pathlib import Path
-
-print(Path("C:/Users/barto/Amalgam/.env").read_text())
+BOT_PREFIX = os.getenv("BOT_PREFIX", "!")  # fallback to "!" if not set
 
 class Amalgam(commands.Bot):
     async def setup_hook(self):
@@ -53,7 +37,6 @@ async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     print(discord.utils.utcnow().strftime("%d/%m/%Y %I:%M:%S:%f"))
-    print("This is the new bot, Amalgam")
     print("------")
 
 @bot.check
