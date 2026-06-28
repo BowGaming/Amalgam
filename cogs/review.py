@@ -10,9 +10,6 @@ class ReviewCog(commands.Cog) :
 
         self.guild_id_MD = config.guild_MD
         self.guild_id_DCO = config.guild_DCO
-    
-        self.review_channel_id_MD = config.comic_review_channel_MD
-        self.review_channel_id_DCO = config.comic_review_channel_DCO
 
         self.review_instruction_embed = Embed(
             title="**How to Post Reviews**",
@@ -41,8 +38,29 @@ class ReviewCog(commands.Cog) :
         """Checks messages in the review channel and enforces format."""
         if message.author.bot :
             return
-        
-        if message.channel.id not in (self.review_channel_id_MD, self.review_channel_id_DCO):
+            
+        if message.guild.id == self.guild_id_MD:
+            home_guild_id = config.guild_MD
+            home_review_channel_id = config.comic_review_channel_MD
+            home_emoji = self.bot.get_emoji(config.review_reaction_emoji_MD) 
+
+            out_guild_id = config.guild_DCO
+            out_review_channel_id = config.comic_review_channel_DCO
+            out_emoji = self.bot.get_emoji(config.review_reaction_emoji_DCO) 
+
+        elif message.guild.id == self.guild_id_DCO:
+            home_guild_id = config.guild_DCO
+            home_review_channel_id = config.comic_review_channel_DCO
+            home_emoji = self.bot.get_emoji(config.review_reaction_emoji_DCO) 
+
+            out_guild_id = config.guild_MD
+            out_review_channel_id = config.comic_review_channel_MD
+            out_emoji = self.bot.get_emoji(config.review_reaction_emoji_MD) 
+        else:
+            return
+    
+            
+        if message.channel.id != home_review_channel_id:
             return
         
         # Regex pattern to match section headers (## or bold headers)
@@ -93,11 +111,7 @@ class ReviewCog(commands.Cog) :
         await message.channel.send(content=self.format_message)
 
         # Add reaction to passed messages
-        if message.guild.id == self.guild_id_MD:
-            emoji = self.bot.get_emoji(config.review_reaction_emoji_MD) 
-        if message.guild.id == self.guild_id_DCO:
-            emoji = self.bot.get_emoji(config.review_reaction_emoji_DCO) 
-        await message.add_reaction(emoji)
+        await message.add_reaction(home_emoji)
 
         # Create a thread for discussion
         first_line = message.content.strip().split("\n", 1)[0]
