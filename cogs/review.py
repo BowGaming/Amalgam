@@ -135,6 +135,10 @@ class ReviewCog(commands.Cog) :
                 ban = await out_guild.fetch_ban(message.author)
                 # User is banned
                 return
+            except discord.NotFound:
+                pass
+
+        print("Yay you're not a crook!")
         
             
 async def setup(bot: commands.Bot) :
