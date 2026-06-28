@@ -7,6 +7,9 @@ import re
 class ReviewCog(commands.Cog) :
     def __init__(self, bot) :
         self.bot = bot
+
+        self.guild_id_MD = config.guild_MD
+        self.guild_id_DCO = config.guild_DCO
     
         self.review_channel_id_MD = config.comic_review_channel_MD
         self.review_channel_id_DCO = config.comic_review_channel_DCO
@@ -90,7 +93,10 @@ class ReviewCog(commands.Cog) :
         await message.channel.send(content=self.format_message)
 
         # Add reaction to passed messages
-        emoji = self.bot.get_emoji(config.review_reaction_emoji) 
+        if message.guild.id = self.guild_id_MD
+            emoji = self.bot.get_emoji(config.review_reaction_emoji_MD) 
+        if message.guid.self = self.guild_id_DCO
+            emoji = self.bot.get_emoji(config.review_reaction_emoji_DCO) 
         await message.add_reaction(emoji)
 
         # Create a thread for discussion
