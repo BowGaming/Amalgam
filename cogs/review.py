@@ -133,13 +133,9 @@ class ReviewCog(commands.Cog) :
         if out_guild:
             try:
                 ban = await out_guild.fetch_ban(message.author)
-        
                 # User is banned
-                print(f"{message.author.display_name} is banned")
+                return
         
-            except discord.NotFound:
-                # User is not banned
-                print(f"{message.author.display_name} is not banned")
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
