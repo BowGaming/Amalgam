@@ -39,7 +39,7 @@ class ReviewCog(commands.Cog) :
         if message.author.bot :
             return
         
-        if message.channel.id != self.review_channel_id_MD and message.channel.id != self.review_channel_id_DCO :
+        if message.channel.id not in (self.review_channel_id_MD, self.review_channel_id_DCO):
             return
         
         # Regex pattern to match section headers (## or bold headers)
