@@ -129,6 +129,7 @@ class ReviewCog(commands.Cog) :
         # ===============================================================================================================================================================
         # End of code for homeserver, beginning of code of out server
 
+        # Stops here if user is banned in out server
         out_guild = self.bot.get_guild(out_guild_id)
         if out_guild:
             try:
@@ -137,8 +138,6 @@ class ReviewCog(commands.Cog) :
                 return
             except discord.NotFound:
                 pass
-
-        print("Yay you're not a crook!")
         
             
 async def setup(bot: commands.Bot) :
