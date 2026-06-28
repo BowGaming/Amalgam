@@ -1,11 +1,6 @@
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
-import os
-
-load_dotenv()  # loads variables from .env
-TOKEN = os.getenv("DISCORD_TOKEN")
-BOT_PREFIX = os.getenv("BOT_PREFIX", "!")  # fallback to "!" if not set
+from config import *
 
 class Amalgam(commands.Bot):
     async def setup_hook(self):
