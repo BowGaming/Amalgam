@@ -125,6 +125,20 @@ class ReviewCog(commands.Cog) :
         await thread.send(
             f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
         )
+        # ===============================================================================================================================================================
+        # End of code for homeserver, beginning of code of out server
+
+        out_guild = self.bot.get_guild(out_guild_id)
+        if out_guild:
+            try:
+                ban = await out_guild.fetch_ban(user)
+        
+                # User is banned
+                print(f"{user} is banned")
+        
+            except discord.NotFound:
+                # User is not banned
+                print(f"{user} is not banned")
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
