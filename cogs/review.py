@@ -95,7 +95,7 @@ class ReviewCog(commands.Cog) :
         # Add reaction to passed messages
         if message.guild.id == self.guild_id_MD:
             emoji = self.bot.get_emoji(config.review_reaction_emoji_MD) 
-        if message.guild.self == self.guild_id_DCO:
+        if message.guild.id == self.guild_id_DCO:
             emoji = self.bot.get_emoji(config.review_reaction_emoji_DCO) 
         await message.add_reaction(emoji)
 
