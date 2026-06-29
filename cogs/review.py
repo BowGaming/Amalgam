@@ -225,9 +225,13 @@ class ReviewCog(commands.Cog) :
         await mirrored_review.add_reaction(out_emoji)
 
         # Create a thread for discussion
-        thread = await mirrored_review.create_thread(
+        thread_out = await mirrored_review.create_thread(
             name=f"Review: {comic_name} by {message.author.display_name}",
             auto_archive_duration=4320  # 3 days
+        )
+        
+        await thread_out.send(
+            f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
         )
             
 async def setup(bot: commands.Bot) :
