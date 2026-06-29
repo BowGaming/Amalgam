@@ -192,6 +192,17 @@ class ReviewCog(commands.Cog) :
                 pass
 
         await self.forward_review(message, out_review_channel_id)
+        
+        # Remove previous embed messages from bot to keep latest at bottom
+        out_channel = self.bot.get_channel(out_review_channel_id)
+        async for msg in out_channel.history(limit=5):
+            if msg.author == self.bot.user:
+                if msg.content == self.format_message:
+                    await msg.delete()
+                if msg.embeds:
+                    embed = msg.embeds[0]
+                    if embed.title == self.review_instruction_embed.title:
+                        await msg.delete()    
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
