@@ -193,8 +193,21 @@ class ReviewCog(commands.Cog) :
 
         await self.forward_review(message, out_review_channel_id)
         
+        self.cursor.execute(
+            """
+            SELECT mirrored_channel_id, mirrored_id
+            FROM forward_reviews
+            WHERE original_id = ?
+            """,
+            (message.id,)
+        )
+        
+        result = self.cursor.fetchone()
+        channel_id, mirrored_id = result
+        out_channel = self.bot.get_channel(channel_id)
+        mirrored_review = await out_channel.fetch_message(mirrored_id)
+
         # Remove previous embed messages from bot to keep latest at bottom in out server
-        out_channel = self.bot.get_channel(out_review_channel_id)
         async for msg in out_channel.history(limit=5):
             if msg.author == self.bot.user:
                 if msg.content == self.format_message:
@@ -207,6 +220,15 @@ class ReviewCog(commands.Cog) :
         # Send sticky embeds at bottom in out server
         await out_channel.send(embed=self.review_instruction_embed)
         await out_channel.send(content=self.format_message)
+
+        # Add reaction to passed messages
+        await mirrored_review.add_reaction(out_emoji)
+
+        # Create a thread for discussion
+        thread = await mirrored_review.create_thread(
+            name=f"Review: {comic_name} by {message.author.display_name}",
+            auto_archive_duration=4320  # 3 days
+        )
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
