@@ -103,9 +103,14 @@ class ReviewCog(commands.Cog) :
             return
         
         # Remove previous embed messages from bot to keep latest at bottom
-        async for msg in message.channel.history(limit = 5) :
-            if msg.author == self.bot.user :
-                await msg.delete()
+        async for msg in message.channel.history(limit=5):
+            if msg.author == self.bot.user:
+                if msg.content == self.format_message:
+                    await msg.delete()
+                if msg.embeds:
+                    embed = msg.embeds[0]
+                    if embed.title == self.review_instruction_embed.title:
+                        await msg.delete()    
             
         # Send sticky embeds at bottom
         await message.channel.send(embed=self.review_instruction_embed)
