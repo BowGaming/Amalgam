@@ -61,8 +61,14 @@ class ReviewCog(commands.Cog) :
             f"{message.content}"
         )
     
-        # Send mirrored message
-        mirrored = await target_channel.send(content=modified_review)
+        # Download attachments
+        files = []
+        for attachment in message.attachments:
+            file = await attachment.to_file()
+            files.append(file)
+    
+        # Send message WITH attachments
+        mirrored = await target_channel.send(content=modified_review, files=files if files else None)
     
         # Store ID mapping
         self.cursor.execute(
