@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import Embed, Forbidden
 import config
 import re
+import sqlite3
 
 
 class ReviewCog(commands.Cog) :
@@ -33,6 +34,46 @@ class ReviewCog(commands.Cog) :
             "**MU/DCUI link:** (optional) A link to the comic on Marvel Unlimited or DC Universe Infinite. This is not mandatory for the format."
             "```"
         )
+
+        # Open database
+        self.conn = sqlite3.connect("forward_reviews.db")
+        self.cursor = self.conn.cursor()
+        
+        # Create table if missing
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS forward_reviews (
+            original_id INTEGER PRIMARY KEY,
+            mirrored_channel_id INTEGER NOT NULL,
+            mirrored_id INTEGER NOT NULL
+        )
+        """)
+        self.conn.commit()
+
+    async def forward_review(self, message, out_review_channel_id):
+        
+        target_channel = self.bot.get_channel(out_review_channel_id)
+        if not target_channel:
+            return
+    
+        # Modify message before forwarding
+        modified_review = (
+            f"Review from **{message.author.display_name}**:\n\n"
+            f"{message.content}"
+        )
+    
+        # Send mirrored message
+        mirrored = await target_channel.send(content=modified_review)
+    
+        # Store ID mapping
+        self.cursor.execute(
+            """
+            INSERT INTO forward_reviews
+            (original_id, mirrored_channel_id, mirrored_id)
+            VALUES (?, ?, ?)
+            """,
+            (message.id, target_channel.id, mirrored.id)
+        )
+        self.conn.commit()
 
     @commands.Cog.listener()
     async def on_message(self, message) :
@@ -143,7 +184,8 @@ class ReviewCog(commands.Cog) :
                 return
             except discord.NotFound:
                 pass
-        
+
+        await self.forward_review(message, out_review_channel_id)
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
