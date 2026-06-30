@@ -233,6 +233,31 @@ class ReviewCog(commands.Cog) :
         await thread_out.send(
             f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
         )
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+
+        if after.author.bot:
+            return
+
+        if message.guild.id == self.guild_id_MD:
+            home_guild_id = config.guild_MD
+            home_review_channel_id = config.comic_review_channel_MD
+
+            out_guild_id = config.guild_DCO
+            out_review_channel_id = config.comic_review_channel_DCO
+
+        elif message.guild.id == self.guild_id_DCO:
+            home_guild_id = config.guild_DCO
+            home_review_channel_id = config.comic_review_channel_DCO
+
+            out_guild_id = config.guild_MD
+            out_review_channel_id = config.comic_review_channel_MD
+        else:
+            return
+
+        if before.content == after.content:
+            return
             
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
