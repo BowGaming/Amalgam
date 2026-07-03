@@ -239,6 +239,7 @@ class ReviewCog(commands.Cog) :
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
+        print("Message edited!")
 
         if after.author.bot:
             return
