@@ -255,7 +255,7 @@ class ReviewCog(commands.Cog) :
         else:
             return
 
-        if after.channel.id != home_review_channel_id
+        if after.channel.id != home_review_channel_id:
             return
 
         self.cursor.execute(
