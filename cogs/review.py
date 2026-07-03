@@ -239,11 +239,10 @@ class ReviewCog(commands.Cog) :
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        print("Message edited!")
 
         if after.author.bot:
             return
-
+        
         if before.content == after.content and before.attachments == after.attachments:
             return
 
@@ -258,6 +257,9 @@ class ReviewCog(commands.Cog) :
 
         if after.channel.id != home_review_channel_id:
             return
+
+        print("Message edited!")
+
 
         self.cursor.execute(
             """
