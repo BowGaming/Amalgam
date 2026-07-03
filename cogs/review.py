@@ -49,6 +49,12 @@ class ReviewCog(commands.Cog) :
         """)
         self.conn.commit()
 
+    def make_forwarded_content(self, message):
+        return (
+            f"Review from **{message.author.display_name}**:\n\n"
+            f"{message.content}"
+        )
+    
     async def forward_review(self, message, out_review_channel_id):
         
         target_channel = self.bot.get_channel(out_review_channel_id)
@@ -56,10 +62,7 @@ class ReviewCog(commands.Cog) :
             return
     
         # Modify message before forwarding
-        modified_review = (
-            f"Review from **{message.author.display_name}**:\n\n"
-            f"{message.content}"
-        )
+        modified_review = self.make_forwarded_content(message)
     
         # Download attachments
         files = []
@@ -232,6 +235,54 @@ class ReviewCog(commands.Cog) :
         
         await thread_out.send(
             f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
+        )
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+
+        if after.author.bot:
+            return
+
+        if before.content == after.content and before.attachments == after.attachments:
+            return
+
+        if after.guild.id == self.guild_id_MD:
+            home_review_channel_id = config.comic_review_channel_MD
+
+        elif after.guild.id == self.guild_id_DCO:
+            home_review_channel_id = config.comic_review_channel_DCO
+
+        else:
+            return
+
+        if after.channel.id != home_review_channel_id
+            return
+
+        self.cursor.execute(
+            """
+            SELECT mirrored_channel_id, mirrored_id
+            FROM forward_reviews
+            WHERE original_id = ?
+            """,
+            (after.id,)
+        )
+    
+        result = self.cursor.fetchone()
+    
+        if result is None:
+            return
+    
+        channel_id, mirrored_id = result
+    
+        channel = self.bot.get_channel(channel_id)
+
+        try:
+            mirrored = await channel.fetch_message(mirrored_id)
+        except discord.NotFound:
+            return
+
+        await mirrored.edit(
+            content=self.make_forwarded_content(after)
         )
             
 async def setup(bot: commands.Bot) :
