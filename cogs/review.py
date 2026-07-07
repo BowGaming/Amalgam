@@ -238,14 +238,23 @@ class ReviewCog(commands.Cog) :
         )
 
     @commands.Cog.listener()
-    async def on_message_edit(self, before, after):
+    async def on_raw_message_edit(self, payload):
+
+        if "content" not in payload.data:
+            return
+
+        channel = self.bot.get_channel(payload.channel_id)
+        if channel is None:
+            return
+        
+        try:
+            after = await channel.fetch_message(payload.message_id)
+        except discord.NotFound:
+            return
 
         if after.author.bot:
             return
         
-        if before.content == after.content and before.attachments == after.attachments:
-            return
-
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
 
@@ -276,8 +285,6 @@ class ReviewCog(commands.Cog) :
             return
     
         channel_id, mirrored_id = result
-    
-        channel = self.bot.get_channel(channel_id)
 
         try:
             mirrored = await channel.fetch_message(mirrored_id)
