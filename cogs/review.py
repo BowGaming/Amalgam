@@ -286,8 +286,10 @@ class ReviewCog(commands.Cog) :
     
         channel_id, mirrored_id = result
 
+        mirror_channel = self.bot.get_channel(channel_id)
+
         try:
-            mirrored = await channel.fetch_message(mirrored_id)
+            mirrored = await mirror_channel.fetch_message(mirrored_id)
         except discord.NotFound:
             return
 
