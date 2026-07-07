@@ -267,9 +267,6 @@ class ReviewCog(commands.Cog) :
         if after.channel.id != home_review_channel_id:
             return
 
-        print("Message edited!")
-
-
         self.cursor.execute(
             """
             SELECT mirrored_channel_id, mirrored_id
@@ -296,6 +293,42 @@ class ReviewCog(commands.Cog) :
         await mirrored.edit(
             content=self.make_forwarded_content(after)
         )
-            
+
+    @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload):
+        
+        self.cursor.execute(
+            """
+            SELECT mirrored_channel_id, mirrored_id
+            FROM forward_reviews
+            WHERE original_id = ?
+            """,
+            (payload.message_id,)
+        )
+    
+        result = self.cursor.fetchone()
+    
+        if result is None:
+            return    
+
+        channel_id, mirrored_id = result
+
+        channel = self.bot.get_channel(channel_id)
+
+        if channel is None:
+            return
+        
+        try:
+            message = await channel.fetch_message(mirrored_id)
+            await message.delete()
+        except discord.NotFound:
+            pass
+
+        self.cursor.execute(
+            "DELETE FROM forward_reviews WHERE original_id = ?",
+            (payload.message_id,)
+        )
+        self.conn.commit()
+                
 async def setup(bot: commands.Bot) :
     await bot.add_cog(ReviewCog(bot))
