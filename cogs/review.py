@@ -13,6 +13,10 @@ class ReviewCog(commands.Cog) :
         self.guild_id_MD = config.guild_MD
         self.guild_id_DCO = config.guild_DCO
 
+        # Max character length for messages. Messages get cut up in pieces if exceeds the below value
+        self.max_content_length = 1990
+
+        # Sticky messages
         self.review_instruction_embed = Embed(
             title="**How to Post Reviews**",
             description=(
@@ -39,7 +43,8 @@ class ReviewCog(commands.Cog) :
         self.conn = sqlite3.connect("forward_reviews.db")
         self.cursor = self.conn.cursor()
         
-        # Create table if missing
+        # Create tables if missing
+        # forward_reviews stores all db info needed to forward, edit and delete reviews
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS forward_reviews (
             original_id INTEGER PRIMARY KEY,
@@ -49,12 +54,24 @@ class ReviewCog(commands.Cog) :
         """)
         self.conn.commit()
 
+        # forwarded_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is used in cog threads.py
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS forwarded_threads (
+            original_thread_id INTEGER PRIMARY KEY,
+            mirrored_thread_id INTEGER NOT NULL,
+            owner_id INTEGER NOT NULL
+        )
+        """)
+        self.conn.commit()
+
+    # Function that alters original review content for forwarding (cutting message up to fit character limit, adding OP credit)
     def make_forwarded_content(self, message):
         return (
             f"Review from **{message.author.display_name}**:\n\n"
             f"{message.content}"
         )
-    
+
+    # Function that forwards the review
     async def forward_review(self, message, out_review_channel_id):
         
         target_channel = self.bot.get_channel(out_review_channel_id)
@@ -70,7 +87,7 @@ class ReviewCog(commands.Cog) :
             file = await attachment.to_file()
             files.append(file)
     
-        # Send message WITH attachments
+        # Send message with attachments
         mirrored = await target_channel.send(content=modified_review, files=files if files else None)
     
         # Store ID mapping
@@ -84,12 +101,16 @@ class ReviewCog(commands.Cog) :
         )
         self.conn.commit()
 
+    # ======================================================================================================================================================================================
+    # Listener for new reviews
     @commands.Cog.listener()
     async def on_message(self, message) :
-        """Checks messages in the review channel and enforces format."""
+       
+        # Ignore bot messages
         if message.author.bot :
             return
-            
+
+        # Assign variables based on in which server the original review is sent. Also ignore if review is not sent in MD or DCO
         if message.guild.id == self.guild_id_MD:
             home_guild_id = config.guild_MD
             home_review_channel_id = config.comic_review_channel_MD
@@ -110,7 +131,7 @@ class ReviewCog(commands.Cog) :
         else:
             return
     
-            
+        # Ignore messages not sent in review channel    
         if message.channel.id != home_review_channel_id:
             return
         
@@ -123,32 +144,34 @@ class ReviewCog(commands.Cog) :
             re.IGNORECASE | re.DOTALL
         )
 
+        # Review message does not pass format
         if not pattern.search(message.content):
-
+            # Try to DM the user before deleting the message
             try:
-                # Try to DM the user before deleting the message
+                # Reason for deletion
                 reason = (
                     "Your review post was removed because it doesn't follow the required format.\n"
                     "Please make sure to follow the provided format.\n"
                     "If you keep experiencing issues, try copying the format or a previous review, and fill in your own information.\n\n"
                     "Here’s what you wrote so you can easily copy and fix it:"
                 )
-        
+
+                # Send reason for deletion
                 await message.author.send(
                     f"Hey {message.author.display_name},\n\n{reason}\n"
                 )
-                
-                MAX_LENGTH = 1990
-                content = message.content
 
-                for i in range(0, len(content), MAX_LENGTH):
-                    text = content[i:i + MAX_LENGTH]
+                # Send original message so user can copy and fix (note: messages deleted by automod will NOT be DMed to user!)
+                content = message.content
+                for i in range(0, len(content), self.max_content_length):
+                    text = content[i:i + self.max_content_length]
                     await message.author.send(f"```\n{text}\n```")
-                    
-            except Forbidden:
-                # User has DMs disabled or blocked the bot
-                pass
             
+            # User has DMs disabled or blocked the bot        
+            except Forbidden:
+                pass
+
+            # Delete review message
             await message.delete()
             return
         
@@ -181,10 +204,11 @@ class ReviewCog(commands.Cog) :
         await thread.send(
             f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
         )
+        
         # ===============================================================================================================================================================
         # End of code for homeserver, beginning of code of out server
 
-        # Stops here if user is banned in out server
+        # Check if user is banned in other server. If so, don't forward
         out_guild = self.bot.get_guild(out_guild_id)
         if out_guild:
             try:
@@ -194,8 +218,10 @@ class ReviewCog(commands.Cog) :
             except discord.NotFound:
                 pass
 
+        # Forward review
         await self.forward_review(message, out_review_channel_id)
-        
+
+        # Retrieve data from db for following executions
         self.cursor.execute(
             """
             SELECT mirrored_channel_id, mirrored_id
@@ -237,36 +263,58 @@ class ReviewCog(commands.Cog) :
             f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
         )
 
+        # Store thread mapping
+        self.cursor.execute(
+            """
+            INSERT INTO forwarded_threads
+            (original_thread_id, mirrored_thread_id, owner_id)
+            VALUES (?, ?, ?)
+            """,
+            (
+                thread.id,
+                thread_out.id,
+                message.author.id
+            )
+        )
+        self.conn.commit()
+
+    # ======================================================================================================================================================================================
+    # Listener for edits of reviews
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload):
 
+        # Ignore if content wasn't edited
         if "content" not in payload.data:
             return
 
-        channel = self.bot.get_channel(payload.channel_id)
+        # Ignore edits in DMs
+        channel = self.bot.get_channel(payload.channel_id) 
         if channel is None:
             return
-        
+
+        # Get new message
         try:
             after = await channel.fetch_message(payload.message_id)
         except discord.NotFound:
             return
 
+        # Ignore edits by bot
         if after.author.bot:
             return
-        
+
+        # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
-
         elif after.guild.id == self.guild_id_DCO:
             home_review_channel_id = config.comic_review_channel_DCO
-
         else:
             return
 
+        # Ignore edits not made in review channel
         if after.channel.id != home_review_channel_id:
             return
 
+        # Retrieve data from db for following executions
         self.cursor.execute(
             """
             SELECT mirrored_channel_id, mirrored_id
@@ -277,26 +325,29 @@ class ReviewCog(commands.Cog) :
         )
     
         result = self.cursor.fetchone()
-    
+        # Ignore if original review has no mirror
         if result is None:
             return
-    
         channel_id, mirrored_id = result
-
         mirror_channel = self.bot.get_channel(channel_id)
 
+        # Find original mirrored message
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
         except discord.NotFound:
             return
 
+        # Edit mirrored message
         await mirrored.edit(
             content=self.make_forwarded_content(after)
         )
 
+    # ======================================================================================================================================================================================
+    # Listener for deletion of reviews
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
-        
+
+        # Retrieve data from db for following executions
         self.cursor.execute(
             """
             SELECT mirrored_channel_id, mirrored_id
@@ -305,25 +356,24 @@ class ReviewCog(commands.Cog) :
             """,
             (payload.message_id,)
         )
-    
         result = self.cursor.fetchone()
-    
+        # Ignore if original review has no mirror
         if result is None:
             return    
-
         channel_id, mirrored_id = result
 
         channel = self.bot.get_channel(channel_id)
-
         if channel is None:
             return
-        
+
+        # Delete mirrored review
         try:
             message = await channel.fetch_message(mirrored_id)
             await message.delete()
         except discord.NotFound:
             pass
 
+        # Delete db entry from db
         self.cursor.execute(
             "DELETE FROM forward_reviews WHERE original_id = ?",
             (payload.message_id,)
