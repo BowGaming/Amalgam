@@ -6,7 +6,8 @@ class Amalgam(commands.Bot):
     async def setup_hook(self):
         initial_extensions = [
           #add cogs here like this:
-          "cogs.review"
+          "cogs.review",
+          "cogs.threads",
         ]
 
         for extension in initial_extensions:
