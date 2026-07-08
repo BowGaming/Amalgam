@@ -21,9 +21,9 @@ class ThreadCog(commands.Cog) :
         self.cursor = self.conn.cursor()
         
         # Create tables if missing
-        # forwarded_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is gathered in cog review.py
+        # forward_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is gathered in cog review.py
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS forwarded_threads (
+        CREATE TABLE IF NOT EXISTS forward_threads (
             original_thread_id INTEGER PRIMARY KEY,
             mirrored_thread_id INTEGER NOT NULL,
             owner_id INTEGER NOT NULL
@@ -31,9 +31,9 @@ class ThreadCog(commands.Cog) :
         """)
         self.conn.commit()
 
-        # forwarded_thread_messages stores all db info needed to determine what original thread belongs to what mirrored thread
+        # forward_thread_messages stores all db info needed to determine what original thread belongs to what mirrored thread
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS forwarded_thread_messages (
+        CREATE TABLE IF NOT EXISTS forward_thread_messages (
             original_thread_message_id INTEGER PRIMARY KEY,
             mirrored_thread_message_id INTEGER NOT NULL
         )
@@ -69,7 +69,7 @@ class ThreadCog(commands.Cog) :
         # Store ID mapping
         self.cursor.execute(
             """
-            INSERT INTO forwarded_thread_messages
+            INSERT INTO forward_thread_messages
             (original_thread_message_id, mirrored_thread_message_id)
             VALUES (?, ?)
             """,
@@ -118,7 +118,7 @@ class ThreadCog(commands.Cog) :
         self.cursor.execute(
             """
             SELECT mirrored_thread_id, owner_id
-            FROM forwarded_threads
+            FROM forward_threads
             WHERE original_thread_id = ?
             """,
             (message.channel.id,)
@@ -229,22 +229,35 @@ class ThreadCog(commands.Cog) :
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
 
-        # Retrieve data from db for following executions
+        # Retrieve data from db's for following executions
         self.cursor.execute(
             """
-            SELECT mirrored_channel_id, mirrored_id
-            FROM forward_reviews
-            WHERE original_id = ?
+            SELECT mirrored_thread_message_id
+            FROM forward_thread_messages
+            WHERE original_thread_message_id = ?
             """,
             (payload.message_id,)
         )
         result = self.cursor.fetchone()
-        # Ignore if original review has no mirror
+        # Ignore if message has no mirror
         if result is None:
             return    
-        channel_id, mirrored_id = result
+        mirrored_id = result
 
-        channel = self.bot.get_channel(channel_id)
+        self.cursor.execute(
+            """
+            SELECT mirrored_thread_id
+            FROM forward_threads
+            WHERE original_thread_id = ?
+            """,
+            (payload.channel_id,)
+        )
+        result = self.cursor.fetchone()
+        if result is None:
+            return    
+        mirrored_thread_id = result
+
+        channel = self.bot.get_channel(mirrored_thread_id)
         if channel is None:
             return
 
@@ -257,7 +270,7 @@ class ThreadCog(commands.Cog) :
 
         # Delete db entry from db
         self.cursor.execute(
-            "DELETE FROM forward_reviews WHERE original_id = ?",
+            "DELETE FROM forward_thread_messages WHERE original_thread_message_id = ?",
             (payload.message_id,)
         )
         self.conn.commit()
