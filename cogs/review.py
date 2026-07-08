@@ -54,9 +54,9 @@ class ReviewCog(commands.Cog) :
         """)
         self.conn.commit()
 
-        # forwarded_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is used in cog threads.py
+        # forward_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is used in cog threads.py
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS forwarded_threads (
+        CREATE TABLE IF NOT EXISTS forward_threads (
             original_thread_id INTEGER PRIMARY KEY,
             mirrored_thread_id INTEGER NOT NULL,
             owner_id INTEGER NOT NULL
@@ -266,7 +266,7 @@ class ReviewCog(commands.Cog) :
         # Store thread mapping
         self.cursor.execute(
             """
-            INSERT INTO forwarded_threads
+            INSERT INTO forward_threads
             (original_thread_id, mirrored_thread_id, owner_id)
             VALUES (?, ?, ?)
             """,
