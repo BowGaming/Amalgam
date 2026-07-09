@@ -344,7 +344,9 @@ class ReviewCog(commands.Cog) :
             return
         channel_id, mirrored_id = result
         mirror_channel = self.bot.get_channel(channel_id)
-
+        if mirror_channel is None:
+            return
+            
         # Find original mirrored message
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
