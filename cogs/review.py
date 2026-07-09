@@ -219,9 +219,7 @@ class ReviewCog(commands.Cog) :
                 ban = await out_guild.fetch_ban(message.author)
                 # User is banned
                 return
-            except discord.NotFound:
-                pass
-            except (discord.Forbidden, discord.HTTPException):
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 pass
 
         # Forward review
