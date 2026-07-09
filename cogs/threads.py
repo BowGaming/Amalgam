@@ -243,7 +243,7 @@ class ThreadCog(commands.Cog) :
         # Ignore if message has no mirror
         if result is None:
             return    
-        mirrored_id = result
+        mirrored_id = result[0]
 
         print("Deletion detected 2")
 
@@ -258,7 +258,7 @@ class ThreadCog(commands.Cog) :
         result = self.cursor.fetchone()
         if result is None:
             return    
-        mirrored_thread_id = result
+        mirrored_thread_id = result[0]
 
         print("Deletion detected 3")
 
