@@ -109,6 +109,10 @@ class ReviewCog(commands.Cog) :
         # Ignore bot messages
         if message.author.bot :
             return
+        
+        # Ignore DMs (globally_block_dms only gates commands, not listeners)
+        if message.guild is None:
+            return
 
         # Assign variables based on in which server the original review is sent. Also ignore if review is not sent in MD or DCO
         if message.guild.id == self.guild_id_MD:
@@ -217,6 +221,8 @@ class ReviewCog(commands.Cog) :
                 return
             except discord.NotFound:
                 pass
+            except (discord.Forbidden, discord.HTTPException):
+                pass
 
         # Forward review
         await self.forward_review(message, out_review_channel_id)
@@ -232,8 +238,12 @@ class ReviewCog(commands.Cog) :
         )
         
         result = self.cursor.fetchone()
+        if result is None:
+            return 
         channel_id, mirrored_id = result
         out_channel = self.bot.get_channel(channel_id)
+        if out_channel is None:
+            return
         mirrored_review = await out_channel.fetch_message(mirrored_id)
 
         # Remove previous embed messages from bot to keep latest at bottom in out server
@@ -301,7 +311,11 @@ class ReviewCog(commands.Cog) :
         # Ignore edits by bot
         if after.author.bot:
             return
-
+       
+        # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
+        if after.guild is None:
+            return
+        
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
@@ -330,7 +344,9 @@ class ReviewCog(commands.Cog) :
             return
         channel_id, mirrored_id = result
         mirror_channel = self.bot.get_channel(channel_id)
-
+        if mirror_channel is None:
+            return
+            
         # Find original mirrored message
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
