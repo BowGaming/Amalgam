@@ -32,6 +32,7 @@ async def on_ready():
     print("Logged in as")
     print(bot.user.name)
     print(bot.user.id)
+    print("Using Active development branch")
     print(discord.utils.utcnow().strftime("%d/%m/%Y %I:%M:%S:%f"))
     print("------")
 
