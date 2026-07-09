@@ -92,18 +92,11 @@ class ThreadCog(commands.Cog) :
 
         # Assign variables based on in which server the thread message is sent. Also ignore if thread message is not sent in MD or DCO
         if message.guild.id == self.guild_id_MD:
-            home_guild_id = config.guild_MD
             home_review_channel_id = config.comic_review_channel_MD
-
             out_guild_id = config.guild_DCO
-            out_review_channel_id = config.comic_review_channel_DCO
-
         elif message.guild.id == self.guild_id_DCO:
-            home_guild_id = config.guild_DCO
             home_review_channel_id = config.comic_review_channel_DCO
-
             out_guild_id = config.guild_MD
-            out_review_channel_id = config.comic_review_channel_MD
         else:
             return
 
@@ -134,8 +127,18 @@ class ThreadCog(commands.Cog) :
         # Ignore all thread messages not sent by review OP
         if message.author.id != owner_id:
             return
+
+        # Check if user is banned in other server. If so, don't continue
+        out_guild = self.bot.get_guild(out_guild_id)
+        if out_guild:
+            try:
+                ban = await out_guild.fetch_ban(message.author)
+                # User is banned
+                return
+            except discord.NotFound:
+                pass
         
-        # Regex pattern, NEED TO ADJUST!
+        # Regex pattern, NEED TO ADJUST! (also not in use right now)
         pattern = re.compile(
             r"##\s*.+\s*"                                   # Comic name header
             r"\*\*year and writer:\*\*.+?"
@@ -146,16 +149,6 @@ class ThreadCog(commands.Cog) :
 
         # Review message does not pass format
         #if not pattern.search(message.content):
-
-        # Check if user is banned in other server. If so, don't forward
-        out_guild = self.bot.get_guild(out_guild_id)
-        if out_guild:
-            try:
-                ban = await out_guild.fetch_ban(message.author)
-                # User is banned
-                return
-            except discord.NotFound:
-                pass
 
         # Forward review
         await self.forward_content(message, mirrored_thread_id)
@@ -208,6 +201,7 @@ class ThreadCog(commands.Cog) :
             """,
             (payload.message_id,)
         )
+        
         result = self.cursor.fetchone()
         # Ignore if message has no mirror
         if result is None:
@@ -222,6 +216,7 @@ class ThreadCog(commands.Cog) :
             """,
             (payload.channel_id,)
         )
+        
         result = self.cursor.fetchone()
         if result is None:
             return    
@@ -257,6 +252,7 @@ class ThreadCog(commands.Cog) :
             """,
             (payload.message_id,)
         )
+        
         result = self.cursor.fetchone()
         # Ignore if message has no mirror
         if result is None:
@@ -271,6 +267,7 @@ class ThreadCog(commands.Cog) :
             """,
             (payload.channel_id,)
         )
+        
         result = self.cursor.fetchone()
         if result is None:
             return    
