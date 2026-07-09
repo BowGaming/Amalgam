@@ -43,7 +43,7 @@ class ThreadCog(commands.Cog) :
     # Function that alters original message content for forwarding (cutting message up to fit character limit, adding OP credit)
     def make_forwarded_content(self, message):
         return (
-            f"Review from **{message.author.display_name}**:\n\n"
+            f"Message from **{message.author.display_name}**:\n\n"
             f"{message.content}"
         )
 
