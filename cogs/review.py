@@ -221,6 +221,8 @@ class ReviewCog(commands.Cog) :
                 return
             except discord.NotFound:
                 pass
+            except (discord.Forbidden, discord.HTTPException):
+                pass
 
         # Forward review
         await self.forward_review(message, out_review_channel_id)
