@@ -109,6 +109,10 @@ class ReviewCog(commands.Cog) :
         # Ignore bot messages
         if message.author.bot :
             return
+        
+        # Ignore DMs (globally_block_dms only gates commands, not listeners)
+        if message.guild is None:
+            return
 
         # Assign variables based on in which server the original review is sent. Also ignore if review is not sent in MD or DCO
         if message.guild.id == self.guild_id_MD:
