@@ -192,27 +192,46 @@ class ThreadCog(commands.Cog) :
         else:
             return
 
-        # Ignore edits not made in review channel
-        if after.channel.id != home_review_channel_id:
+        parent_channel = after.channel.parent
+        parent_channel_id = parent_channel.id
+        
+        # Ignore edits not sent in review channel threads    
+        if parent_channel_id != home_review_channel_id:
             return
 
-        # Retrieve data from db for following executions
+        # Retrieve data from db's for following executions
         self.cursor.execute(
             """
-            SELECT mirrored_channel_id, mirrored_id
-            FROM forward_reviews
-            WHERE original_id = ?
+            SELECT mirrored_thread_message_id
+            FROM forward_thread_messages
+            WHERE original_thread_message_id = ?
             """,
-            (after.id,)
+            (payload.message_id,)
         )
-    
         result = self.cursor.fetchone()
-        # Ignore if original review has no mirror
+        # Ignore if message has no mirror
         if result is None:
-            return
-        channel_id, mirrored_id = result
-        mirror_channel = self.bot.get_channel(channel_id)
+            return    
+        mirrored_id = result[0]
 
+        self.cursor.execute(
+            """
+            SELECT mirrored_thread_id
+            FROM forward_threads
+            WHERE original_thread_id = ?
+            """,
+            (payload.channel_id,)
+        )
+        result = self.cursor.fetchone()
+        if result is None:
+            return    
+        mirrored_thread_id = result[0]
+
+        # Get mirror thread
+        channel = self.bot.get_channel(mirrored_thread_id)
+        if channel is None:
+            return
+            
         # Find original mirrored message
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
@@ -229,7 +248,6 @@ class ThreadCog(commands.Cog) :
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
 
-        print("Deletion detected 1")
         # Retrieve data from db's for following executions
         self.cursor.execute(
             """
@@ -245,8 +263,6 @@ class ThreadCog(commands.Cog) :
             return    
         mirrored_id = result[0]
 
-        print("Deletion detected 2")
-
         self.cursor.execute(
             """
             SELECT mirrored_thread_id
@@ -260,13 +276,10 @@ class ThreadCog(commands.Cog) :
             return    
         mirrored_thread_id = result[0]
 
-        print("Deletion detected 3")
-
+        # Get mirror thread
         channel = self.bot.get_channel(mirrored_thread_id)
         if channel is None:
             return
-
-        print("Deletion detected 4")
 
         # Delete mirrored review
         try:
