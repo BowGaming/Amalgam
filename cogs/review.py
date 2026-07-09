@@ -236,8 +236,12 @@ class ReviewCog(commands.Cog) :
         )
         
         result = self.cursor.fetchone()
+        if result is None:
+            return 
         channel_id, mirrored_id = result
         out_channel = self.bot.get_channel(channel_id)
+        if out_channel is None:
+            return
         mirrored_review = await out_channel.fetch_message(mirrored_id)
 
         # Remove previous embed messages from bot to keep latest at bottom in out server
