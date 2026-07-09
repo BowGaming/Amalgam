@@ -311,7 +311,11 @@ class ReviewCog(commands.Cog) :
         # Ignore edits by bot
         if after.author.bot:
             return
-
+       
+        # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
+        if after.guild is None:
+            return
+        
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
