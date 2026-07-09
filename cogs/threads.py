@@ -245,6 +245,8 @@ class ThreadCog(commands.Cog) :
             return    
         mirrored_id = result
 
+        print("Deletion detected 2")
+
         self.cursor.execute(
             """
             SELECT mirrored_thread_id
@@ -258,11 +260,13 @@ class ThreadCog(commands.Cog) :
             return    
         mirrored_thread_id = result
 
+        print("Deletion detected 3")
+
         channel = self.bot.get_channel(mirrored_thread_id)
         if channel is None:
             return
 
-        print("Deletion detected 2")
+        print("Deletion detected 4")
 
         # Delete mirrored review
         try:
