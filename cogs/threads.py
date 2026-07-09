@@ -185,6 +185,9 @@ class ThreadCog(commands.Cog) :
         else:
             return
 
+        # Ignore edits if not sent in thread
+        if not isinstance(after.channel, discord.Thread):
+            return
         parent_channel = after.channel.parent
         parent_channel_id = parent_channel.id
         
