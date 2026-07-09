@@ -229,6 +229,7 @@ class ThreadCog(commands.Cog) :
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
 
+        print("Deletion detected 1")
         # Retrieve data from db's for following executions
         self.cursor.execute(
             """
@@ -261,7 +262,7 @@ class ThreadCog(commands.Cog) :
         if channel is None:
             return
 
-        print("Deletion detected")
+        print("Deletion detected 2")
 
         # Delete mirrored review
         try:
