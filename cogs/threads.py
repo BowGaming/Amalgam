@@ -137,9 +137,7 @@ class ThreadCog(commands.Cog) :
                 ban = await out_guild.fetch_ban(message.author)
                 # User is banned
                 return
-            except discord.NotFound:
-                pass
-            except (discord.Forbidden, discord.HTTPException):
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 pass
                 
         # Regex pattern, NEED TO ADJUST! (also not in use right now)
