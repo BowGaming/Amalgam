@@ -261,6 +261,8 @@ class ThreadCog(commands.Cog) :
         if channel is None:
             return
 
+        print("Deletion detected")
+
         # Delete mirrored review
         try:
             message = await channel.fetch_message(mirrored_id)
