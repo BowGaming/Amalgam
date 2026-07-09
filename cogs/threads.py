@@ -228,8 +228,8 @@ class ThreadCog(commands.Cog) :
         mirrored_thread_id = result[0]
 
         # Get mirror thread
-        channel = self.bot.get_channel(mirrored_thread_id)
-        if channel is None:
+        mirror_channel = self.bot.get_channel(mirrored_thread_id)
+        if mirror_channel is None:
             return
             
         # Find original mirrored message
@@ -277,13 +277,13 @@ class ThreadCog(commands.Cog) :
         mirrored_thread_id = result[0]
 
         # Get mirror thread
-        channel = self.bot.get_channel(mirrored_thread_id)
-        if channel is None:
+        mirror_channel = self.bot.get_channel(mirrored_thread_id)
+        if mirror_channel is None:
             return
 
         # Delete mirrored review
         try:
-            message = await channel.fetch_message(mirrored_id)
+            message = await mirror_channel.fetch_message(mirrored_id)
             await message.delete()
         except discord.NotFound:
             pass
