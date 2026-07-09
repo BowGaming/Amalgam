@@ -101,6 +101,8 @@ class ThreadCog(commands.Cog) :
             return
 
         parent_channel = message.channel.parent
+        if parent_channel is None:
+            return
         parent_channel_id = parent_channel.id
         
         # Ignore messages not sent in review channel threads    
@@ -137,7 +139,9 @@ class ThreadCog(commands.Cog) :
                 return
             except discord.NotFound:
                 pass
-        
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+                
         # Regex pattern, NEED TO ADJUST! (also not in use right now)
         pattern = re.compile(
             r"##\s*.+\s*"                                   # Comic name header
@@ -176,7 +180,11 @@ class ThreadCog(commands.Cog) :
         # Ignore edits by bot
         if after.author.bot:
             return
-
+            
+        # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
+        if after.guild is None:
+            return
+            
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
@@ -189,6 +197,8 @@ class ThreadCog(commands.Cog) :
         if not isinstance(after.channel, discord.Thread):
             return
         parent_channel = after.channel.parent
+        if parent_channel is None:
+            return
         parent_channel_id = parent_channel.id
         
         # Ignore edits not sent in review channel threads    
