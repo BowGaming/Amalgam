@@ -5,21 +5,21 @@ import config
 import re
 import sqlite3
 
+# Constants
+max_content_length = 1990
 
-class ThreadCog(commands.Cog) :
-    def __init__(self, bot) :
+
+class ThreadCog(commands.Cog):
+    def __init__(self, bot):
         self.bot = bot
 
         self.guild_id_MD = config.guild_MD
         self.guild_id_DCO = config.guild_DCO
 
-        # Max character length for messages. Messages get cut up in pieces if exceeds the below value
-        self.max_content_length = 1990
-
         # Open database
         self.conn = sqlite3.connect("forward_reviews.db")
         self.cursor = self.conn.cursor()
-        
+
         # Create tables if missing
         # forward_threads stores all db info needed to determine what original thread belongs to what mirrored thread. This info is gathered in cog review.py
         self.cursor.execute("""
@@ -43,29 +43,30 @@ class ThreadCog(commands.Cog) :
     # Function that alters original message content for forwarding (cutting message up to fit character limit, adding OP credit)
     def make_forwarded_content(self, message):
         return (
-            f"Message from **{message.author.display_name}**:\n\n"
-            f"{message.content}"
+            f"Message from **{message.author.display_name}**:\n\n" f"{message.content}"
         )
 
     # Function that forwards the message
     async def forward_content(self, message, out_thread_id):
-        
+
         target_channel = self.bot.get_channel(out_thread_id)
         if not target_channel:
             return
-    
+
         # Modify message before forwarding
         modified_review = self.make_forwarded_content(message)
-    
+
         # Download attachments
         files = []
         for attachment in message.attachments:
             file = await attachment.to_file()
             files.append(file)
-    
+
         # Send message with attachments
-        mirrored = await target_channel.send(content=modified_review, files=files if files else None)
-    
+        mirrored = await target_channel.send(
+            content=modified_review, files=files if files else None
+        )
+
         # Store ID mapping
         self.cursor.execute(
             """
@@ -73,17 +74,17 @@ class ThreadCog(commands.Cog) :
             (original_thread_message_id, mirrored_thread_message_id)
             VALUES (?, ?)
             """,
-            (message.id, mirrored.id)
+            (message.id, mirrored.id),
         )
         self.conn.commit()
 
     # ======================================================================================================================================================================================
     # Listener for new thread messages
     @commands.Cog.listener()
-    async def on_message(self, message) :
-       
+    async def on_message(self, message):
+
         # Ignore bot messages, messages not sent in a thread, messages sent in DMs
-        if message.author.bot :
+        if message.author.bot:
             return
         if not isinstance(message.channel, discord.Thread):
             return
@@ -104,8 +105,8 @@ class ThreadCog(commands.Cog) :
         if parent_channel is None:
             return
         parent_channel_id = parent_channel.id
-        
-        # Ignore messages not sent in review channel threads    
+
+        # Ignore messages not sent in review channel threads
         if parent_channel_id != home_review_channel_id:
             return
 
@@ -116,9 +117,9 @@ class ThreadCog(commands.Cog) :
             FROM forward_threads
             WHERE original_thread_id = ?
             """,
-            (message.channel.id,)
+            (message.channel.id,),
         )
-        
+
         result = self.cursor.fetchone()
         # Stop if no mirrored thread exists
         if result is None:
@@ -139,18 +140,18 @@ class ThreadCog(commands.Cog) :
                 return
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 pass
-                
+
         # Regex pattern, NEED TO ADJUST! (also not in use right now)
         pattern = re.compile(
-            r"##\s*.+\s*"                                   # Comic name header
+            r"##\s*.+\s*"  # Comic name header
             r"\*\*year and writer:\*\*.+?"
             r"\*\*rating:\*\*.+?"
             r"\*\*review:\*\*.+",
-            re.IGNORECASE | re.DOTALL
+            re.IGNORECASE | re.DOTALL,
         )
 
         # Review message does not pass format
-        #if not pattern.search(message.content):
+        # if not pattern.search(message.content):
 
         # Forward review
         await self.forward_content(message, mirrored_thread_id)
@@ -165,7 +166,7 @@ class ThreadCog(commands.Cog) :
             return
 
         # Ignore edits in DMs
-        channel = self.bot.get_channel(payload.channel_id) 
+        channel = self.bot.get_channel(payload.channel_id)
         if channel is None:
             return
 
@@ -178,11 +179,11 @@ class ThreadCog(commands.Cog) :
         # Ignore edits by bot
         if after.author.bot:
             return
-            
+
         # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
         if after.guild is None:
             return
-            
+
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
         if after.guild.id == self.guild_id_MD:
             home_review_channel_id = config.comic_review_channel_MD
@@ -198,8 +199,8 @@ class ThreadCog(commands.Cog) :
         if parent_channel is None:
             return
         parent_channel_id = parent_channel.id
-        
-        # Ignore edits not sent in review channel threads    
+
+        # Ignore edits not sent in review channel threads
         if parent_channel_id != home_review_channel_id:
             return
 
@@ -210,13 +211,13 @@ class ThreadCog(commands.Cog) :
             FROM forward_thread_messages
             WHERE original_thread_message_id = ?
             """,
-            (payload.message_id,)
+            (payload.message_id,),
         )
-        
+
         result = self.cursor.fetchone()
         # Ignore if message has no mirror
         if result is None:
-            return    
+            return
         mirrored_id = result[0]
 
         self.cursor.execute(
@@ -225,19 +226,19 @@ class ThreadCog(commands.Cog) :
             FROM forward_threads
             WHERE original_thread_id = ?
             """,
-            (payload.channel_id,)
+            (payload.channel_id,),
         )
-        
+
         result = self.cursor.fetchone()
         if result is None:
-            return    
+            return
         mirrored_thread_id = result[0]
 
         # Get mirror thread
         mirror_channel = self.bot.get_channel(mirrored_thread_id)
         if mirror_channel is None:
             return
-            
+
         # Find original mirrored message
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
@@ -245,9 +246,7 @@ class ThreadCog(commands.Cog) :
             return
 
         # Edit mirrored message
-        await mirrored.edit(
-            content=self.make_forwarded_content(after)
-        )
+        await mirrored.edit(content=self.make_forwarded_content(after))
 
     # ======================================================================================================================================================================================
     # Listener for deletion of forwarded thread messages
@@ -261,13 +260,13 @@ class ThreadCog(commands.Cog) :
             FROM forward_thread_messages
             WHERE original_thread_message_id = ?
             """,
-            (payload.message_id,)
+            (payload.message_id,),
         )
-        
+
         result = self.cursor.fetchone()
         # Ignore if message has no mirror
         if result is None:
-            return    
+            return
         mirrored_id = result[0]
 
         self.cursor.execute(
@@ -276,12 +275,12 @@ class ThreadCog(commands.Cog) :
             FROM forward_threads
             WHERE original_thread_id = ?
             """,
-            (payload.channel_id,)
+            (payload.channel_id,),
         )
-        
+
         result = self.cursor.fetchone()
         if result is None:
-            return    
+            return
         mirrored_thread_id = result[0]
 
         # Get mirror thread
@@ -299,9 +298,10 @@ class ThreadCog(commands.Cog) :
         # Delete db entry from db
         self.cursor.execute(
             "DELETE FROM forward_thread_messages WHERE original_thread_message_id = ?",
-            (payload.message_id,)
+            (payload.message_id,),
         )
         self.conn.commit()
-                
-async def setup(bot: commands.Bot) :
+
+
+async def setup(bot: commands.Bot):
     await bot.add_cog(ThreadCog(bot))
