@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import Embed, Forbidden
+from discord.utils import escape_markdown
 import config
 import re
 import sqlite3
@@ -37,7 +38,7 @@ pattern = re.compile(
     r"\*\*rating:\*\*.+?"
     r"\*\*review:\*\*.+",
     re.IGNORECASE | re.DOTALL,
-    )
+)
 
 
 class ReviewCog(commands.Cog):
@@ -48,7 +49,7 @@ class ReviewCog(commands.Cog):
         self.guild_id_DCO = config.guild_DCO
 
         # Open database
-        self.conn = sqlite3.connect("forward_reviews.db")
+        self.conn = sqlite3.connect(config.reviews_db)
         self.cursor = self.conn.cursor()
 
         # Create tables if missing
@@ -72,21 +73,23 @@ class ReviewCog(commands.Cog):
         """)
         self.conn.commit()
 
-    # Function that alters original review content for forwarding (cutting message up to fit character limit, adding OP credit)
-    def make_forwarded_content(self, message):
-        return (
-            f"Review from **{message.author.display_name}**:\n\n" f"{message.content}"
-        )
+    """Function that alters original review content for forwarding (cutting message up to fit character limit, adding OP credit)"""
 
-    # Function that forwards the review
-    async def forward_review(self, message, out_review_channel_id):
+    def make_forwarded_content(self, message, markdown_author_name):
+        return f"Review from **{markdown_author_name}**:\n\n" f"{message.content}"
+
+    """Function that forwards the review"""
+
+    async def forward_review(
+        self, message, out_review_channel_id, markdown_author_name
+    ):
 
         target_channel = self.bot.get_channel(out_review_channel_id)
         if not target_channel:
             return
 
         # Modify message before forwarding
-        modified_review = self.make_forwarded_content(message)
+        modified_review = self.make_forwarded_content(message, markdown_author_name)
 
         # Download attachments
         files = []
@@ -109,6 +112,26 @@ class ReviewCog(commands.Cog):
             (message.id, target_channel.id, mirrored.id),
         )
         self.conn.commit()
+
+    """Function that does standard review operations (resend sticky message, add reaction)"""
+
+    async def standard_review_operations(self, message, emoji):
+        # Remove previous embed messages from bot to keep latest at bottom
+        async for msg in message.channel.history(limit=5):
+            if msg.author == self.bot.user:
+                if msg.content == format_message:
+                    await msg.delete()
+                if msg.embeds:
+                    embed = msg.embeds[0]
+                    if embed.title == review_instruction_embed.title:
+                        await msg.delete()
+
+        # Send sticky embeds at bottom
+        await message.channel.send(embed=review_instruction_embed)
+        await message.channel.send(content=format_message)
+
+        # Add reaction to passed messages
+        await message.add_reaction(emoji)
 
     # ======================================================================================================================================================================================
     # Listener for new reviews
@@ -179,26 +202,14 @@ class ReviewCog(commands.Cog):
             await message.delete()
             return
 
-        # Remove previous embed messages from bot to keep latest at bottom
-        async for msg in message.channel.history(limit=5):
-            if msg.author == self.bot.user:
-                if msg.content == format_message:
-                    await msg.delete()
-                if msg.embeds:
-                    embed = msg.embeds[0]
-                    if embed.title == review_instruction_embed.title:
-                        await msg.delete()
-
-        # Send sticky embeds at bottom
-        await message.channel.send(embed=review_instruction_embed)
-        await message.channel.send(content=format_message)
-
-        # Add reaction to passed messages
-        await message.add_reaction(home_emoji)
+        await self.standard_review_operations(message, home_emoji)
 
         # Create a thread for discussion
         first_line = message.content.strip().split("\n", 1)[0]
-        comic_name = first_line.replace("##", "").strip()
+        comic_name = first_line.lstrip("#").strip()
+        markdown_author_name = escape_markdown(
+            message.author.display_name
+        )  # possibly not needed
 
         thread = await message.create_thread(
             name=f"Review: {comic_name} by {message.author.display_name}",
@@ -206,7 +217,7 @@ class ReviewCog(commands.Cog):
         )
 
         await thread.send(
-            f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
+            f"Thread for discussing **{comic_name}**, reviewed by {markdown_author_name}!"
         )
 
         # ===============================================================================================================================================================
@@ -214,16 +225,25 @@ class ReviewCog(commands.Cog):
 
         # Check if user is banned in other server. If so, don't forward
         out_guild = self.bot.get_guild(out_guild_id)
-        if out_guild:
-            try:
-                await out_guild.fetch_ban(message.author)
-                # User is banned
-                return
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                pass
+        try:
+            await out_guild.fetch_ban(message.author)
+            # User is banned
+            return
+
+        except discord.NotFound:
+            # User is not banned
+            pass
+
+        except discord.Forbidden:
+            print("Bot cannot access ban list")
+            return
+
+        except discord.HTTPException as e:
+            print(f"Discord API error: {e}")
+            return
 
         # Forward review
-        await self.forward_review(message, out_review_channel_id)
+        await self.forward_review(message, out_review_channel_id, markdown_author_name)
 
         # Retrieve data from db for following executions
         self.cursor.execute(
@@ -244,22 +264,7 @@ class ReviewCog(commands.Cog):
             return
         mirrored_review = await out_channel.fetch_message(mirrored_id)
 
-        # Remove previous embed messages from bot to keep latest at bottom in out server
-        async for msg in out_channel.history(limit=5):
-            if msg.author == self.bot.user:
-                if msg.content == format_message:
-                    await msg.delete()
-                if msg.embeds:
-                    embed = msg.embeds[0]
-                    if embed.title == review_instruction_embed.title:
-                        await msg.delete()
-
-        # Send sticky embeds at bottom in out server
-        await out_channel.send(embed=review_instruction_embed)
-        await out_channel.send(content=format_message)
-
-        # Add reaction to passed messages
-        await mirrored_review.add_reaction(out_emoji)
+        await self.standard_review_operations(mirrored_review, out_emoji)
 
         # Create a thread for discussion
         thread_out = await mirrored_review.create_thread(
@@ -268,7 +273,7 @@ class ReviewCog(commands.Cog):
         )
 
         await thread_out.send(
-            f"Thread for discussing **{comic_name}**, reviewed by {message.author.display_name}!"
+            f"Thread for discussing **{comic_name}**, reviewed by {markdown_author_name}!"
         )
 
         # Store thread mapping
@@ -292,22 +297,14 @@ class ReviewCog(commands.Cog):
             return
 
         # Ignore edits in DMs
-        channel = self.bot.get_channel(payload.channel_id)
-        if channel is None:
+        if payload.guild_id is None:
             return
 
         # Get new message
-        try:
-            after = await channel.fetch_message(payload.message_id)
-        except discord.NotFound:
-            return
+        after = payload.message
 
         # Ignore edits by bot
         if after.author.bot:
-            return
-
-        # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
-        if after.guild is None:
             return
 
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
@@ -370,11 +367,12 @@ class ReviewCog(commands.Cog):
             return
         channel_id, mirrored_id = result
 
-        channel = self.bot.get_channel(channel_id)
-        if channel is None:
+        # Ignore DMs
+        if payload.guild_id is None:
             return
 
         # Delete mirrored review
+        channel = self.bot.get_channel(channel_id)
         try:
             message = await channel.fetch_message(mirrored_id)
             await message.delete()

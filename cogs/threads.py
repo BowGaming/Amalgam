@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import Embed, Forbidden
+from discord.utils import escape_markdown
 import config
 import re
 import sqlite3
@@ -40,13 +41,16 @@ class ThreadCog(commands.Cog):
         """)
         self.conn.commit()
 
-    # Function that alters original message content for forwarding (cutting message up to fit character limit, adding OP credit)
+    """Function that alters original message content for forwarding (cutting message up to fit character limit, adding OP credit)"""
+
     def make_forwarded_content(self, message):
+        markdown_author_name = escape_markdown(message.author.display_name)
         return (
-            f"Message from **{message.author.display_name}**:\n\n" f"{message.content}"
+            f"Message from **{markdown_author_name}**:\n\n" f"{message.content}"
         )
 
-    # Function that forwards the message
+    """Function that forwards the message"""
+
     async def forward_content(self, message, out_thread_id):
 
         target_channel = self.bot.get_channel(out_thread_id)
@@ -125,7 +129,6 @@ class ThreadCog(commands.Cog):
         if result is None:
             return
         mirrored_thread_id, owner_id = result
-        out_channel = self.bot.get_channel(mirrored_thread_id)
 
         # Ignore all thread messages not sent by review OP
         if message.author.id != owner_id:
@@ -135,7 +138,7 @@ class ThreadCog(commands.Cog):
         out_guild = self.bot.get_guild(out_guild_id)
         if out_guild:
             try:
-                ban = await out_guild.fetch_ban(message.author)
+                await out_guild.fetch_ban(message.author)
                 # User is banned
                 return
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
@@ -166,22 +169,14 @@ class ThreadCog(commands.Cog):
             return
 
         # Ignore edits in DMs
-        channel = self.bot.get_channel(payload.channel_id)
-        if channel is None:
+        if payload.guild_id is None:
             return
 
         # Get new message
-        try:
-            after = await channel.fetch_message(payload.message_id)
-        except discord.NotFound:
-            return
+        after = payload.message
 
         # Ignore edits by bot
         if after.author.bot:
-            return
-
-        # Ignore DMs (get_channel can return a cached DMChannel, which is not None)
-        if after.guild is None:
             return
 
         # Assign variables based on in which server the edit is done. Also ignore if edit is not in MD or DCO
@@ -235,11 +230,11 @@ class ThreadCog(commands.Cog):
         mirrored_thread_id = result[0]
 
         # Get mirror thread
-        mirror_channel = self.bot.get_channel(mirrored_thread_id)
-        if mirror_channel is None:
+        if payload.guild_id is None:
             return
 
         # Find original mirrored message
+        mirror_channel = self.bot.get_channel(mirrored_thread_id)
         try:
             mirrored = await mirror_channel.fetch_message(mirrored_id)
         except discord.NotFound:
@@ -283,12 +278,12 @@ class ThreadCog(commands.Cog):
             return
         mirrored_thread_id = result[0]
 
-        # Get mirror thread
-        mirror_channel = self.bot.get_channel(mirrored_thread_id)
-        if mirror_channel is None:
+        # Ignore DMs
+        if payload.guild_id is None:
             return
 
         # Delete mirrored review
+        mirror_channel = self.bot.get_channel(mirrored_thread_id)
         try:
             message = await mirror_channel.fetch_message(mirrored_id)
             await message.delete()

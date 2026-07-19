@@ -6,6 +6,9 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 BOT_PREFIX = os.getenv("BOT_PREFIX", "~")
 
+reviews_db = "forward_reviews.db"
+threads_db = "forward_threads.db"
+
 guild_MD = int(os.getenv("GUILD_MD", 0))
 guild_DCO = int(os.getenv("GUILD_DCO", 0))
 comic_review_channel_MD = int(os.getenv("COMIC_REVIEW_CHANNEL_MD", 0))
